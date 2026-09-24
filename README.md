@@ -1,5 +1,11 @@
 # irpf-exterior
 
+[![PyPI](https://img.shields.io/pypi/v/irpf-exterior)](https://pypi.org/project/irpf-exterior/)
+[![Python](https://img.shields.io/pypi/pyversions/irpf-exterior)](https://pypi.org/project/irpf-exterior/)
+[![Cobertura](https://img.shields.io/badge/cobertura-98%25-brightgreen)](https://github.com/GustavoRizzo/irpf-exterior/blob/main/justfile)
+[![Licença](https://img.shields.io/pypi/l/irpf-exterior)](https://github.com/GustavoRizzo/irpf-exterior/blob/main/LICENSE)
+[![GitHub](https://img.shields.io/badge/github-GustavoRizzo%2Firpf--exterior-blue?logo=github)](https://github.com/GustavoRizzo/irpf-exterior)
+
 Núcleo de domínio da apuração de IRPF sobre investimentos no exterior por
 residentes no Brasil, sob a Lei nº 14.754/2023 ("Lei das Offshores"), com foco
 inicial em aplicações em Portugal e a compensação do imposto lá retido.
@@ -38,11 +44,13 @@ cumprir — descrever o formato de uma cotação não é buscar uma cotação.
 ## Instalação
 
 ```bash
-just sync               # ambiente de desenvolvimento (ou: uv sync --all-extras)
-uv add irpf-exterior    # como dependência de outro projeto
+pip install irpf-exterior    # ou: uv add irpf-exterior
 ```
 
-Requer Python 3.14+. O extra `simbolico` (SymPy) só é necessário para gerar a
+Para desenvolver, clone o [repositório](https://github.com/GustavoRizzo/irpf-exterior)
+e rode `just sync` (ou `uv sync --all-extras`).
+
+Requer Python 3.12+. O extra `simbolico` (SymPy) só é necessário para gerar a
 documentação de auditoria e rodar os testes simbólicos.
 
 ## Uso
@@ -109,7 +117,7 @@ rendeu. Nada é calculado antes de ser pedido.
 
 ## Desenvolvimento
 
-Os comandos estão no [`justfile`](justfile) — `just` sem argumentos lista todos:
+Os comandos estão no [`justfile`](https://github.com/GustavoRizzo/irpf-exterior/blob/main/justfile) — `just` sem argumentos lista todos:
 
 ```bash
 just sync     # cria a .venv com as dependências de desenvolvimento
@@ -118,6 +126,7 @@ just types    # mypy estrito
 just lint     # ruff check + format --check
 just fmt      # corrige e formata
 just docs     # regenera docs/auditoria/ a partir do REGISTRO
+just cov      # cobertura de testes (o número do badge)
 just check    # lint + types + test, o que um CI cobraria
 ```
 
@@ -129,7 +138,7 @@ direto (`uv run pytest`, `uv run mypy`, ...); o justfile só unifica os nomes.
 
 ## Documentação
 
-- [`docs/auditoria/catalogo-de-formulas.md`](docs/auditoria/catalogo-de-formulas.md) — o que é calculado e com que base legal (gerado a partir do código).
-- [`docs/desenvolvimento/guia-de-uso.md`](docs/desenvolvimento/guia-de-uso.md) — como usar a API, com exemplos que rodam como testes.
-- [`docs/desenvolvimento/guia-de-contribuicao.md`](docs/desenvolvimento/guia-de-contribuicao.md) — como acrescentar uma fórmula sem quebrar as garantias.
-- [`pre-project-docs/ARQUITETURA.md`](pre-project-docs/ARQUITETURA.md) — por que a biblioteca é assim.
+- [`docs/auditoria/catalogo-de-formulas.md`](https://github.com/GustavoRizzo/irpf-exterior/blob/main/docs/auditoria/catalogo-de-formulas.md) — o que é calculado e com que base legal (gerado a partir do código).
+- [`docs/desenvolvimento/guia-de-uso.md`](https://github.com/GustavoRizzo/irpf-exterior/blob/main/docs/desenvolvimento/guia-de-uso.md) — como usar a API, com exemplos que rodam como testes.
+- [`docs/desenvolvimento/guia-de-contribuicao.md`](https://github.com/GustavoRizzo/irpf-exterior/blob/main/docs/desenvolvimento/guia-de-contribuicao.md) — como acrescentar uma fórmula sem quebrar as garantias.
+- [`pre-project-docs/ARQUITETURA.md`](https://github.com/GustavoRizzo/irpf-exterior/blob/main/pre-project-docs/ARQUITETURA.md) — por que a biblioteca é assim.

@@ -20,6 +20,11 @@ sync:
 test *ARGS:
     uv run pytest "$@"
 
+# Cobertura de testes; o percentual do TOTAL vai no badge do README
+[positional-arguments]
+cov *ARGS:
+    uv run pytest --cov=irpf_exterior --cov-report=term-missing "$@"
+
 # Verifica estilo e formatação, sem alterar nada
 lint:
     uv run ruff check .
@@ -43,7 +48,13 @@ docs *ARGS:
 # Tudo que um CI cobraria: lint, tipos e testes
 check: lint types test
 
+# Gera sdist e wheel em dist/ e valida os metadados que o PyPI vai exibir
+build:
+    rm -rf dist
+    uv build
+    uvx twine check --strict dist/*
+
 # Apaga caches de ferramentas e bytecode
 clean:
-    rm -rf .pytest_cache .mypy_cache .ruff_cache .hypothesis
+    rm -rf .pytest_cache .mypy_cache .ruff_cache .hypothesis .coverage
     find . -type d -name __pycache__ -not -path './.venv/*' -exec rm -rf {} +

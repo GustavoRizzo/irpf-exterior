@@ -1,25 +1,56 @@
 [project]
 name = "irpf-exterior"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Núcleo de domínio da apuração de IRPF sobre investimentos no exterior (Lei 14.754/2023)."
 readme = "README.md"
-requires-python = ">=3.14"
-license = { text = "MIT" }
-authors = [{ name = "grizzo" }]
+# 3.12 é o mínimo: o código usa a sintaxe de genéricos da PEP 695 (`class Money[M]`, `type X = ...`).
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Gustavo Rizzo S M de Albuquerque" }]
+keywords = ["irpf", "imposto de renda", "receita federal", "lei 14.754", "offshore", "portugal"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Natural Language :: Portuguese (Brazilian)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Office/Business :: Financial :: Accounting",
+    "Typing :: Typed",
+]
 dependencies = []
 
 [project.optional-dependencies]
 simbolico = ["sympy>=1.13"]
 
 [project.urls]
-Documentation = "https://github.com/grizzo/irpf-exterior"
+Homepage = "https://github.com/GustavoRizzo/irpf-exterior"
+Repository = "https://github.com/GustavoRizzo/irpf-exterior"
+Documentation = "https://github.com/GustavoRizzo/irpf-exterior/blob/main/docs/desenvolvimento/guia-de-uso.md"
+Issues = "https://github.com/GustavoRizzo/irpf-exterior/issues"
 
 [build-system]
-requires = ["hatchling"]
+# 1.27 é a primeira versão com `license-files` e expressão SPDX (PEP 639).
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
+
+# Fonte única da versão: `__version__` em __init__.py.
+[tool.hatch.version]
+path = "src/irpf_exterior/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/irpf_exterior"]
+
+# O sdist leva o suficiente para rodar a suíte (tests/ importa de scripts/ e lê docs/),
+# mas não os documentos de entrada nem arquivos de ferramenta.
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "scripts", "docs", "README.md", "LICENSE"]
 
 [dependency-groups]
 dev = [
@@ -28,6 +59,7 @@ dev = [
     "mypy>=1.13",
     "ruff>=0.7",
     "sympy>=1.13",
+    "pytest-cov>=6.0",
 ]
 
 [tool.pytest.ini_options]
@@ -36,7 +68,7 @@ addopts = "--doctest-modules"
 pythonpath = ["."]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.12"
 strict = true
 files = ["src", "tests", "scripts"]
 disallow_any_explicit = true
