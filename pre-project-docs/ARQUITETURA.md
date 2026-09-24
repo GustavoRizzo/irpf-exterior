@@ -50,7 +50,17 @@ A biblioteca deve:
 6. **Ser totalmente testável sem infraestrutura**: nenhum teste do núcleo precisa de rede, arquivo, banco ou relógio.
 7. **Ter dois públicos de documentação**: auditores (o que é calculado e por quê) e desenvolvedores (como usar a API).
 
-**Fora de escopo (por enquanto):** leitura de extratos, acesso à API PTAX, geração de arquivo da declaração, interface com o usuário, persistência. Esses itens entram como *adaptadores* fora do núcleo, através das *portas* descritas na seção 5.6.
+**Fora de escopo — e não "por enquanto".** A biblioteca é **pura**: só regras de negócio, sem depender de dados nem de conexões externas. Ficam permanentemente fora dela:
+
+- leitura de extratos e de qualquer arquivo;
+- acesso à API do PTAX, do Banco Central ou a qualquer provedor de cotações;
+- geração do arquivo da declaração;
+- interface com o usuário (web, notebook, CLI, Streamlit);
+- persistência de qualquer natureza.
+
+Esses itens são **adaptadores** e moram em projetos ou pacotes separados. Eles conversam com o núcleo pelas *portas* da seção 5.6, que são apenas contratos (`typing.Protocol`) — declarar o formato do dado esperado não cria dependência, e nenhuma implementação de porta entra nesta biblioteca.
+
+A razão é prática, não purismo: uma cotação vinda da rede transforma um cálculo determinístico num cálculo que depende do dia, do ar e do uptime de terceiros. Um resultado fiscal precisa ser reproduzível anos depois, com os mesmos números, sem rede. Quem busca a cotação é o consumidor; quem a recebe por parâmetro é a biblioteca.
 
 ---
 
@@ -146,7 +156,9 @@ Regras:
 
 ### 5.6. Portas (interfaces para o mundo externo)
 
-O núcleo pode **declarar**, via `typing.Protocol`, as interfaces de que um consumidor precisará, por exemplo `ProvedorDeCambio` (data → `Cambio`) e `RepositorioDeAliquotas` (→ tabela). **As implementações (adaptadores) ficam fora da biblioteca.** Nenhuma função de cálculo recebe uma porta: o consumidor usa a porta para obter os dados e então chama a função pura.
+O núcleo pode **declarar**, via `typing.Protocol`, as interfaces de que um consumidor precisará, por exemplo `ProvedorDeCambio` (data → `Cambio`) e `RepositorioDeAliquotas` (→ tabela). **As implementações (adaptadores) ficam fora da biblioteca, permanentemente** (seção 3). Nenhuma função de cálculo recebe uma porta: o consumidor usa a porta para obter os dados e então chama a função pura.
+
+Uma porta é **só um contrato**: descreve o formato do dado esperado e não importa nada além do próprio domínio. É o que permite `portas.py` existir numa biblioteca que não acessa a rede — declarar o formato de uma cotação não é buscar uma cotação. Se um dia `portas.py` precisar de um `import` que não seja da biblioteca ou da *standard library*, a regra foi quebrada.
 
 ### 5.7. Apurações (resultado + orquestração)
 
@@ -173,11 +185,11 @@ Cada cenário tributário tem um **objeto de resultado imutável** (ex.: `Apurac
 
 ---
 
-## 7. Estrutura sugerida do projeto
+## 7. Estrutura do projeto
 
 ```
-<nome_da_lib>/
-├── src/<nome_da_lib>/
+irpf-exterior/
+├── src/irpf_exterior/
 │   ├── dominio/
 │   │   ├── moeda.py          # BRL, EUR, Money, Cambio
 │   │   └── parametros.py     # Aliquota, TABELA_ALIQUOTAS, aliquota_vigente
@@ -186,19 +198,33 @@ Cada cenário tributário tem um **objeto de resultado imutável** (ex.: `Apurac
 │   │   ├── _base.py          # Formula, @formula, REGISTRO
 │   │   ├── cambio.py         # Fórmulas 1–4, 8
 │   │   ├── rendimento.py     # Fórmulas 5–7
-│   │   └── imposto.py        # Fórmulas 9–13
+│   │   ├── imposto.py        # Fórmulas 9–13
+│   │   ├── analise.py        # Fórmulas 14–16 (decomposição do rendimento)
+│   │   └── projecao.py       # Fórmulas 17–19 (projeção e pontos de equilíbrio)
 │   ├── apuracoes/
 │   │   └── resgate.py        # ApuracaoResgate
-│   └── portas.py             # Protocols (sem implementação)
+│   ├── simulacao/            # camada adjacente: F não existe, é projetado
+│   │   ├── cenario.py        # Cenario (J_eu como input), apurar
+│   │   ├── eixo.py           # EixoCambioFinal | EixoJuro, intervalo, em_torno_de
+│   │   ├── varredura.py      # Varredura, Ponto, executar, serie, para_tabela
+│   │   └── equilibrio.py     # cambio_de_equilibrio, juro_de_equilibrio, regime_vigente
+│   ├── simbolico.py          # modelos SymPy: apuração e simulação
+│   └── portas.py             # Protocols — contratos, nunca implementações
+├── scripts/
+│   └── gerar_catalogo.py     # gera docs/auditoria a partir do REGISTRO
 ├── tests/
 │   ├── unit/                 # uma fórmula por vez, valores conhecidos
 │   ├── propriedades/         # Hypothesis: invariantes
 │   ├── simbolico/            # SymPy: equivalência das formas documentadas
-│   └── cenarios/             # cenários completos de ponta a ponta ("golden")
-└── docs/
-    ├── auditoria/            # catálogo de fórmulas gerado a partir do REGISTRO
-    └── desenvolvimento/      # guia de uso da API
+│   ├── cenarios/             # cenários completos de ponta a ponta ("golden")
+│   └── simulacao/            # eixos, varredura preguiçosa, equilíbrio
+├── docs/
+│   ├── auditoria/            # catálogo de fórmulas, gerado a partir do código
+│   └── desenvolvimento/      # guia de uso e guia de contribuição
+└── justfile                  # nomenclatura única dos comandos (just, just check)
 ```
+
+**Duas camadas, dois propósitos.** `apuracoes/` responde sobre um investimento que **já aconteceu** (`F` é fato, lido no extrato). `simulacao/` responde sobre um que **ainda não aconteceu** (`F` é projetado a partir do juro esperado). A segunda é adjacente e opcional: nada nela é calculado sem ser pedido, e ela não altera nada da primeira.
 
 ---
 
@@ -232,15 +258,27 @@ Testes são obrigatórios. Toda fórmula nova chega com testes das quatro catego
 - A saída de `explicar()` para cada apuração, mostrando a árvore completa de cálculo.
 - Linguagem do domínio (termos do documento de referência), não termos de programação.
 
-**9.2. Para desenvolvedores.** O objetivo é responder "como uso a biblioteca".
+**9.2. Para quem usa a biblioteca.** O objetivo é responder "como uso isto".
 
 - Docstrings em todas as funções e classes públicas, com a referência da fórmula.
-- Um guia de uso com exemplos executáveis (que também rodam como testes, via `doctest` ou equivalente).
+- `docs/desenvolvimento/guia-de-uso.md`: guia com exemplos executáveis, que rodam como `doctest` e portanto não podem envelhecer.
+
+**9.3. Para quem contribui.** O objetivo é responder "como mexo nisto sem quebrar as garantias".
+
+- `docs/desenvolvimento/guia-de-contribuicao.md`: o contrato de pureza, o ciclo de cinco passos de uma fórmula nova, as convenções e as armadilhas já encontradas.
 - Este documento de arquitetura, mantido atualizado quando uma decisão mudar.
+
+**9.4. Documentação que se mantém sozinha.** Três mecanismos, todos com teste que falha se forem violados: o catálogo de auditoria é gerado do `REGISTRO`, o guia de uso roda como `doctest`, e a pureza do núcleo é verificada pela AST em `tests/test_pureza.py`. Documentação que só existe em prosa envelhece; a que quebra a suíte, não.
 
 ---
 
 ## 10. Roteiro e questões em aberto
+
+**Já entregue:**
+
+1. Apuração de resgate total, com compensação Brasil–Portugal (Fórmulas 1–13).
+2. Decomposição do rendimento entre câmbio e aplicação, e a comparação com deixar o dinheiro parado (Fórmulas 14–16).
+3. Simulação: projeção do `F` a partir do juro esperado, varredura preguiçosa sobre os eixos `C_f` e `J_eu`, e pontos de equilíbrio em forma fechada (Fórmulas 17–19).
 
 **Próximos passos previstos:**
 
@@ -249,12 +287,20 @@ Testes são obrigatórios. Toda fórmula nova chega com testes das quatro catego
 3. Compensação de prejuízos, em função separada.
 4. Event sourcing: histórico como tupla imutável de eventos (`Aporte | Resgate | Dividendo`), estado obtido por `fold`. Isso habilita "time travel": a posição em qualquer data é o fold dos eventos até ela.
 
+**Fora do roteiro, por decisão:** qualquer coisa que dependa de dados ou conexões externas (ver seção 3). Interfaces gráficas — inclusive a aplicação Streamlit prevista — são projetos separados que consomem esta biblioteca.
+
 **Questões a confirmar antes de codificar a regra correspondente:**
 
 - Regra de arredondamento exigida pela Receita Federal (hoje: `ROUND_HALF_UP` a centavos, isolado em `Money.arredondado()`).
 - Método de custo para resgates parciais (custo médio ou por lote).
 - Datas de vigência exatas das alíquotas (a de `T_pt` na tabela atual é ilustrativa).
 - Tratamento de taxas da corretora na base de cálculo.
+
+**Armadilhas já encontradas, e que valem para regras futuras:**
+
+- **O piso em zero do imposto quebra formas fechadas.** As Fórmulas 18 e 19 foram derivadas supondo imposto devido; onde o imposto é zero por piso, a álgebra deixa de valer e o código precisa de guardas explícitas. Qualquer fórmula nova obtida por `solve` tem o mesmo risco.
+- **Formas fechadas podem ser assintóticas.** O câmbio de equilíbrio cresce sem limite ao se aproximar de $J_{eu} = T_{br}/(1-T_{br})$. Um número matematicamente correto pode ser economicamente inútil, e quem exibe precisa saber disso.
+- **Parametrizações diferentes exigem modelos simbólicos diferentes.** Na apuração `J_eu` é derivado de `F`; em simulação `J_eu` é dado e `F` é derivado. São dois dicionários em `simbolico.py`, e o teste de cobertura confere a união dos dois contra o `REGISTRO`.
 
 ---
 

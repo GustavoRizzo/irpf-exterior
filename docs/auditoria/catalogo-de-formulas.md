@@ -172,6 +172,36 @@ Quanto se ganhou por ter investido, em vez de deixar o dinheiro parado.
 | Forma expandida | $$V_{inv} = - \frac{C_{f} I}{C_{i}} + F - \max\left(F T_{br} - I T_{br}, - \frac{C_{f} I T_{pt}}{C_{i}} + F T_{pt}\right)$$ |
 | Base legal | Lei 14.754/2023, Art. 2º, §3º (isenção da conta não remunerada) |
 
+### Fórmula 17 — F_proj
+
+O `F` que resultaria de um juro `J_eu` e de um câmbio final `C_f`.
+
+| | |
+| :--- | :--- |
+| Forma encadeada | $$F_{proj} = I_{eu} \cdot (1 + J_{eu}) \cdot C_f$$ |
+| Forma expandida | $$F_{proj} = \frac{C_{f} I \left(J_{eu} + 1\right)}{C_{i}}$$ |
+| Base legal | — |
+
+### Fórmula 18 — C_eq
+
+O câmbio final a partir do qual investir deixa de compensar.
+
+| | |
+| :--- | :--- |
+| Forma encadeada | $$C_{eq} = \frac{C_i \cdot T_{br}}{T_{br}\,(1 + J_{eu}) - J_{eu}}$$ |
+| Forma expandida | $$C_{eq} = \frac{C_{i} T_{br}}{J_{eu} T_{br} - J_{eu} + T_{br}}$$ |
+| Base legal | Lei 14.754/2023, Art. 2º, §3º (isenção da conta não remunerada) |
+
+### Fórmula 19 — J_eq
+
+O juro mínimo para a aplicação apenas empatar com o dinheiro parado.
+
+| | |
+| :--- | :--- |
+| Forma encadeada | $$J_{eq} = \max\left(0,\ \frac{T_{br}\,(C_f - C_i)}{C_f\,(1 - T_{br})}\right)$$ |
+| Forma expandida | $$J_{eq} = \frac{T_{br} \left(- C_{f} + C_{i}\right)}{C_{f} \left(T_{br} - 1\right)}$$ |
+| Base legal | Lei 14.754/2023, Art. 2º, §3º (isenção da conta não remunerada) |
+
 ## Alíquotas e vigências
 
 Uma linha nunca é editada: quando a lei muda, fecha-se o fim da

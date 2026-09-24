@@ -5,6 +5,11 @@ escritas como funções puras sobre dados imutáveis. A biblioteca não lê
 arquivos, não acessa a rede e não consulta o relógio: tudo o que ela precisa
 chega por parâmetro.
 
+Para apurar um investimento que já aconteceu, use este módulo. Para simular um
+que ainda não aconteceu — variando o câmbio ou o juro esperado — veja
+`irpf_exterior.simulacao`, que é uma camada adjacente e opcional: nada dela é
+calculado sem ser pedido.
+
 Exemplo mínimo:
 
 >>> from datetime import date

@@ -208,7 +208,7 @@ O `REGISTRO` é o que alimenta o catálogo de auditoria:
 
 ```python
 >>> len(REGISTRO)
-16
+19
 
 ```
 
@@ -276,3 +276,103 @@ False
 A leitura da Fórmula 16: investir só compensa se o prêmio da aplicação
 (`R_eubr`) superar o imposto **inteiro** (`IR_ef`) — inclusive a parcela que
 incide sobre o ganho cambial, isenta se o dinheiro estivesse parado.
+
+
+## 10. Simulação: e se o câmbio (ou o juro) for outro?
+
+Tudo acima apura um investimento que **já aconteceu**, em que `F` foi lido no
+extrato. Para quem ainda está decidindo, o subpacote `irpf_exterior.simulacao`
+responde à pergunta anterior — e nada nele é calculado sem ser pedido.
+
+```python
+>>> from irpf_exterior.simulacao import (
+...     Cenario, EixoCambioFinal, Varredura, apurar, cambio_de_equilibrio,
+...     executar, intervalo, juro_de_equilibrio, para_tabela, regime_vigente,
+... )
+>>> hipotese = Cenario(
+...     I=brl("10000.00"),
+...     C_i=Cambio(Decimal("5.00"), date(2024, 5, 2), "PTAX"),
+...     J_eu=Decimal("0.01"),                       # a aplicação promete +1% em euros
+...     C_f=Cambio(Decimal("8.00"), date(2025, 3, 10)),
+... )
+
+```
+
+Repare que o cenário recebe **`J_eu`, não `F`**. Os dois não são
+independentes (`F = I_eu · (1 + J_eu) · C_f`), então segurar `F` e mexer no
+câmbio significaria, sem querer, mudar o juro. Com esta parametrização os dois
+eixos ficam ortogonais.
+
+### As duas perguntas diretas
+
+Não é preciso simular duzentos cenários para saber onde está a virada — a
+equação tem solução fechada:
+
+```python
+>>> print(cambio_de_equilibrio(hipotese).valor)
+equilíbrio em 5.3004
+
+```
+
+Ou seja: a 1% de juro, basta o euro passar de R$ 5,30 para que não investir
+tenha sido melhor. Pelo outro eixo:
+
+```python
+>>> print(f"{juro_de_equilibrio(hipotese).valor:.2%}")
+6.62%
+
+```
+
+Se a expectativa é o euro a R$ 8,00, só vale investir acima de 6,62% ao ano
+em euros. Quando não há virada, a resposta diz **por quê**, em vez de devolver
+um número sem sentido:
+
+```python
+>>> generosa = Cenario(I=hipotese.I, C_i=hipotese.C_i,
+...                    J_eu=Decimal("0.20"), C_f=hipotese.C_f)
+>>> print(cambio_de_equilibrio(generosa).valor)
+sem equilíbrio (juro de 20.0000% atinge a fronteira de 17.6471%, acima da qual nenhum câmbio torna investir pior que ficar parado)
+
+```
+
+### A varredura, para o gráfico
+
+`Varredura` só **descreve** a simulação — construí-la não calcula nada. É
+`executar` que gera as apurações, uma por vez:
+
+```python
+>>> v = Varredura(base=hipotese,
+...               eixo=EixoCambioFinal(intervalo("5.00", "8.00", "1.00")))
+>>> for ponto in executar(v):
+...     print(f"C_f={ponto.valor}  V_inv={ponto.apuracao.V_inv.valor}")
+C_f=5.00  V_inv=BRL 72.00
+C_f=6.00  V_inv=BRL -198.00
+C_f=7.00  V_inv=BRL -481.00
+C_f=8.00  V_inv=BRL -764.00
+
+```
+
+A virada entre R$ 5,00 e R$ 6,00 é exatamente o R$ 5,30 que a forma fechada
+já havia dado. Cada ponto carrega a apuração inteira, então a auditoria não
+se perde:
+
+```python
+>>> primeiro = next(executar(v))
+>>> print(regime_vigente(primeiro.apuracao))
+Portugal
+>>> "Fórmula 17" in explicar(primeiro.apuracao.R_br)
+True
+
+```
+
+Para alimentar um gráfico ou um DataFrame, `para_tabela` devolve uma linha por
+ponto — e a biblioteca não desenha nada, só entrega os números:
+
+```python
+>>> linha = next(iter(para_tabela(v)))
+>>> sorted(linha)
+['C_f', 'IR_ef', 'J_eu', 'R_br', 'R_cc', 'R_eubr', 'R_liq', 'V_inv']
+
+```
+
+No notebook, `pd.DataFrame(list(para_tabela(v)))` resolve o resto.

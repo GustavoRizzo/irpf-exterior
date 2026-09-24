@@ -17,7 +17,17 @@ from types import MappingProxyType
 
 import sympy as sp
 
-__all__ = ["DEFINICOES", "INPUTS", "SIMBOLOS", "encadeada", "expandida", "latex_expandida"]
+__all__ = [
+    "DEFINICOES",
+    "DEFINICOES_SIMULACAO",
+    "INPUTS",
+    "INPUTS_SIMULACAO",
+    "SIMBOLOS",
+    "encadeada",
+    "expandida",
+    "expandida_simulacao",
+    "latex_expandida",
+]
 
 _NOMES_INPUT = ("I", "F", "C_i", "C_f", "T_pt", "T_br")
 
@@ -42,6 +52,9 @@ SIMBOLOS: Mapping[str, sp.Symbol] = MappingProxyType(
             "R_eubr",
             "J_eu",
             "V_inv",
+            "F_proj",
+            "C_eq",
+            "J_eq",
         )
     }
 )
@@ -75,8 +88,58 @@ DEFINICOES: Mapping[str, sp.Expr] = MappingProxyType(_DEFINICOES_MUTAVEL)
 """Cada fórmula na forma encadeada, exatamente como o código a implementa.
 
 O piso em zero de `IR_pt` e `IR_br` não é modelado: aqui interessa a álgebra
-das formas documentadas, não o tratamento de prejuízo.
+das formas documentadas, não o tratamento de prejuízo. O mesmo vale para o
+piso de `J_eq` e para as guardas de `C_eq` — é justamente por a álgebra ignorar
+os pisos que o código precisa tratá-los.
 """
+
+
+_DEFINICOES_SIMULACAO_MUTAVEL: dict[str, sp.Expr] = {
+    "I_eu": _s["I"] / _s["C_i"],
+    "F_proj": _s["I_eu"] * (1 + _s["J_eu"]) * _s["C_f"],
+    "C_eq": _s["C_i"] * _s["T_br"] / (_s["T_br"] * (1 + _s["J_eu"]) - _s["J_eu"]),
+    "J_eq": _s["T_br"] * (_s["C_f"] - _s["C_i"]) / (_s["C_f"] * (1 - _s["T_br"])),
+}
+
+DEFINICOES_SIMULACAO: Mapping[str, sp.Expr] = MappingProxyType(_DEFINICOES_SIMULACAO_MUTAVEL)
+"""A mesma realidade, parametrizada para simulação.
+
+Aqui `J_eu` é **input** e `F` é derivado — o inverso do modelo de apuração.
+É essa troca que torna os eixos `J_eu` e `C_f` ortogonais. As fórmulas de
+equilíbrio só fazem sentido nesta parametrização: elas respondem por um `F`
+que ainda não existe.
+"""
+
+INPUTS_SIMULACAO: frozenset[str] = INPUTS | {"J_eu"}
+"""Em simulação o juro é dado e o valor resgatado é consequência."""
+
+
+def _expandir(nome: str, definicoes: Mapping[str, sp.Expr]) -> sp.Expr:
+    """Substitui as variáveis derivadas até sobrarem apenas inputs."""
+    try:
+        expressao = definicoes[nome]
+    except KeyError:
+        raise KeyError(
+            f"{nome!r} não é uma variável derivada. Derivadas: {', '.join(sorted(definicoes))}."
+        ) from None
+    while True:
+        derivadas = {
+            simbolo
+            for simbolo in expressao.free_symbols
+            if str(simbolo) in definicoes and str(simbolo) != nome
+        }
+        if not derivadas:
+            return sp.simplify(expressao)
+        expressao = expressao.subs({s: definicoes[str(s)] for s in derivadas})
+
+
+def expandida_simulacao(nome: str) -> sp.Expr:
+    """A forma expandida no modelo de simulação (com `J_eu` como input).
+
+    >>> sorted(str(s) for s in expandida_simulacao("C_eq").free_symbols)
+    ['C_i', 'J_eu', 'T_br']
+    """
+    return _expandir(nome, DEFINICOES_SIMULACAO)
 
 
 def encadeada(nome: str) -> sp.Expr:
@@ -96,18 +159,14 @@ def expandida(nome: str) -> sp.Expr:
     ...                                  - SIMBOLOS["I"] / SIMBOLOS["C_i"]))
     0
     """
-    expressao = encadeada(nome)
-    while True:
-        derivadas = {
-            simbolo
-            for simbolo in expressao.free_symbols
-            if str(simbolo) in DEFINICOES and str(simbolo) != nome
-        }
-        if not derivadas:
-            return sp.simplify(expressao)
-        expressao = expressao.subs({s: DEFINICOES[str(s)] for s in derivadas})
+    return _expandir(nome, DEFINICOES)
 
 
 def latex_expandida(nome: str) -> str:
-    """A forma expandida em LaTeX, para o catálogo de auditoria."""
-    return sp.latex(expandida(nome))
+    """A forma expandida em LaTeX, para o catálogo de auditoria.
+
+    Procura primeiro no modelo de apuração e, se a fórmula não existir lá,
+    no de simulação — é assim que as Fórmulas 17–19 entram no catálogo.
+    """
+    modelo = DEFINICOES if nome in DEFINICOES else DEFINICOES_SIMULACAO
+    return sp.latex(_expandir(nome, modelo))

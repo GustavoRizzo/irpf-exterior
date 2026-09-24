@@ -63,6 +63,9 @@ Perguntas frequentes:
 | $R_{eubr}$  | **Rendimento da Aplicação** ("juro"/prêmio da aplicação) — quanto a aplicação rendeu **por fora do câmbio**, convertido para Reais. Par de $R_{cc}$ | $\text{R\$}$ | ⚙️ Calculado | $R_{eubr} = R_{eu} \cdot C_f$                                | [[#14. Rendimento da Aplicação em Reais ($R_{eubr}$)\|Fórmula 14]] |
 | $J_{eu}$    | Juro da Aplicação — o rendimento percentual da aplicação em moeda local, limpo de qualquer efeito cambial (é o "juro" que a corretora anuncia) | $\%$ | ⚙️ Calculado | $J_{eu} = \dfrac{R_{eu}}{I_{eu}}$                            | [[#15. Juro da Aplicação ($J_{eu}$)\|Fórmula 15]] |
 | $V_{inv}$   | Vantagem de ter Investido — quanto se ganhou (ou se perdeu, se negativo) por ter investido em vez de deixar o dinheiro parado na conta | $\text{R\$}$ | ⚙️ Calculado | $V_{inv} = R_{liq} - R_{cc}$                                 | [[#16. Vantagem de ter Investido ($V_{inv}$)\|Fórmula 16]] |
+| $F_{proj}$  | Valor Resgatado Projetado — o $F$ que *resultaria* de um juro $J_{eu}$ e de um câmbio final $C_f$. Usado em simulação, quando $F$ ainda não existe | $\text{R\$}$ | ⚙️ Calculado | $F_{proj} = I_{eu} \cdot (1 + J_{eu}) \cdot C_f$             | [[#17. Valor Resgatado Projetado ($F_{proj}$)\|Fórmula 17]] |
+| $C_{eq}$    | Câmbio de Equilíbrio — o $C_f$ a partir do qual investir deixa de compensar, dado um juro $J_{eu}$ (só existe no regime brasileiro, e apenas com $0 < J_{eu} < \frac{T_{br}}{1-T_{br}}$) | $\text{R\$}$ | ⚙️ Calculado | $C_{eq} = \dfrac{C_i \cdot T_{br}}{T_{br}(1 + J_{eu}) - J_{eu}}$ | [[#18. Câmbio de Equilíbrio ($C_{eq}$)\|Fórmula 18]] |
+| $J_{eq}$    | Juro de Equilíbrio — o juro mínimo que a aplicação precisa render para empatar com o dinheiro parado, dado um câmbio $C_f$ | $\%$ | ⚙️ Calculado | $J_{eq} = \max\left(0,\ \dfrac{T_{br}\,(C_f - C_i)}{C_f\,(1 - T_{br})}\right)$ | [[#19. Juro de Equilíbrio ($J_{eq}$)\|Fórmula 19]] |
 
 > **Convenção:** tudo que é chamado de "**Bruto**" (ex.: $R_{br}$, $J$, e o próprio $F$) significa **antes dos impostos**.
 > **Sobre o sufixo `pt`/`br`/`eu`:** ele indica o *contexto/país* da variável (ex.: imposto de Portugal, base brasileira), e quando isso não deixa a moeda óbvia, o sufixo cresce encadeando o destino da conversão — ex.: $IR_{pt}$ (imposto de Portugal, em €) → $IR_{ptbr}$ (o mesmo imposto, convertido pro contexto/moeda do Brasil), e da mesma forma $R_{eu}$ (rendimento da aplicação, em €) → $R_{eubr}$ (o mesmo rendimento, em R\$).
@@ -246,6 +249,83 @@ Aporte de R\$ 10.000,00 com o euro a R\$ 5,00 (€ 2.000,00). A aplicação rend
 O mecanismo: os R\$ 6.000,00 de ganho cambial seriam **isentos** com o dinheiro parado, mas ao investir eles entram na base de cálculo e pagam 15%. Esses R\$ 900,00 de imposto extra não são cobertos pelos R\$ 160,00 que a aplicação rendeu. Conferindo pela forma equivalente: $V_{inv} = 160 - 924 = -764$. ✓
 
 **Regra prática que sai daí:** quanto maior a variação cambial no período, maior o "pedágio" que a aplicação precisa pagar só para empatar com a conta parada. O pedágio é $R_{cc} \cdot T_{br}$ sempre que o imposto brasileiro for o que prevalece.
+
+---
+
+## 🔮 Simulação: e se o câmbio (ou o juro) for outro?
+
+> **Para quem ainda está decidindo.** As Fórmulas 1–16 apuram um investimento que já aconteceu: $F$ é um fato, lido no extrato. Esta seção serve à pergunta anterior — *"se eu investir, e o câmbio terminar em X, ainda compensa?"* — quando $F$ ainda não existe.
+
+### A parametrização muda
+
+Em simulação **não se pode variar $C_f$ mantendo $F$ fixo**. Os dois não são independentes: o valor resgatado em reais é, por construção, o montante em euros convertido pelo câmbio do dia. Quem segura $F$ e mexe em $C_f$ está, sem perceber, dizendo que a aplicação rendeu outra coisa.
+
+A relação é:
+
+$$F = \underbrace{\frac{I}{C_i}}_{I_{eu}} \cdot (1 + J_{eu}) \cdot C_f$$
+
+Por isso a simulação é parametrizada por $(I,\ C_i,\ J_{eu},\ C_f)$ e **deriva** o $F$, em vez de recebê-lo. A vantagem é que os dois eixos ficam **ortogonais**: $J_{eu}$ mede só o desempenho da aplicação, $C_f$ mede só o câmbio, e mexer em um não contamina o outro.
+
+### 17. Valor Resgatado Projetado ($F_{proj}$)
+O $F$ que resultaria de um determinado juro e de um determinado câmbio final. É a inversa da Fórmula 15 (que extrai $J_{eu}$ de um $F$ conhecido), encadeada com a conversão para reais:
+
+$$F_{proj} = I_{eu} \cdot (1 + J_{eu}) \cdot C_f$$
+
+**Versão em termos de inputs/constantes:**
+
+$$F_{proj} = \frac{I}{C_i} \cdot (1 + J_{eu}) \cdot C_f$$
+
+> Alimentando $F_{proj}$ de volta nas Fórmulas 1–16, toda a apuração (e a auditoria) funciona igual: a simulação não é um caminho de cálculo paralelo, é a mesma apuração com um $F$ projetado.
+
+### Os dois regimes, e por que só um tem equilíbrio
+
+O $IR_{ef}$ é o **maior** entre o imposto português e o brasileiro (Fórmula 12), e cada um incide sobre uma base diferente. Isso parte a análise em dois regimes:
+
+| Regime | Quando | $V_{inv}$ vale | Investir pode perder para a conta parada? |
+| :--- | :--- | :--- | :--- |
+| **Portugal prevalece** | $IR_{ptbr} > IR_{br}$ | $R_{eubr} \cdot (1 - T_{pt})$ | **Não.** É sempre positivo se a aplicação rendeu. |
+| **Brasil prevalece** | $IR_{br} \ge IR_{ptbr}$ | $R_{eubr} - T_{br} \cdot R_{br}$ | **Sim.** É aqui que existe ponto de equilíbrio. |
+
+A razão é direta: Portugal tributa **só o rendimento da aplicação** ($R_{eu}$), então sempre sobra $(1 - T_{pt})$ do prêmio. O Brasil tributa **o rendimento inteiro** ($R_{br}$), que inclui o ganho cambial — e esse ganho seria isento com o dinheiro parado. Só o imposto brasileiro cobra pedágio sobre algo que você teria de graça.
+
+**Consequência prática:** investir só pode ser pior do que não investir quando o imposto brasileiro é o que prevalece.
+
+### 18. Câmbio de Equilíbrio ($C_{eq}$)
+Dado um juro esperado $J_{eu}$, o câmbio final a partir do qual investir deixa de compensar. Sai de resolver $V_{inv} = 0$ para $C_f$ no regime brasileiro:
+
+$$C_{eq} = \frac{C_i \cdot T_{br}}{T_{br}\,(1 + J_{eu}) - J_{eu}}$$
+
+Leitura: com $C_f < C_{eq}$ investir compensa; acima disso, o imposto sobre o ganho cambial come mais do que a aplicação rendeu.
+
+> **Quando não existe equilíbrio — por excesso.** Se $J_{eu} \ge \dfrac{T_{br}}{1 - T_{br}}$ o denominador deixa de ser positivo e **nenhum câmbio** torna o investimento pior que a conta parada. Com $T_{br} = 15\%$, essa fronteira é $J_{eu} \approx 17{,}65\%$: uma aplicação que renda mais que isso em euros compensa sempre. A aproximação é **assintótica**: a 17,6% o equilíbrio já passa de R\$ 1.800/€, o que na prática é a mesma resposta.
+
+> **Quando não existe equilíbrio — por falta.** Se $J_{eu} \le 0$ não há prêmio algum a comparar, e investir perde em todo o eixo. A forma fechada devolveria um câmbio qualquer, porque foi derivada **supondo imposto devido**; com prejuízo, o imposto é zero por piso (Fórmula 11) e a álgebra deixa de valer. São dois "não existe equilíbrio" de sinais opostos, e confundi-los seria pior do que não responder.
+
+### 19. Juro de Equilíbrio ($J_{eq}$)
+O espelho da anterior: dado um câmbio final esperado, o juro **mínimo** que a aplicação precisa render para apenas empatar com o dinheiro parado:
+
+$$J_{eq} = \max\left(0,\ \frac{T_{br}\,(C_f - C_i)}{C_f\,(1 - T_{br})}\right)$$
+
+> **Por que o piso em zero.** Com o câmbio em queda a fração fica negativa, mas ali o rendimento em reais também é negativo e o imposto é **zero por piso** (Fórmula 11) — de modo que o equilíbrio verdadeiro é exatamente $J_{eu} = 0$, e não o número que a álgebra sugere. A fração foi derivada supondo imposto devido; fora dessa hipótese ela não vale.
+
+**Forma equivalente, em termos do rendimento cambial** (válida quando há imposto devido)**:**
+
+$$J_{eq} = \frac{T_{br} \cdot R_{cc}}{I_{eu} \cdot C_f \cdot (1 - T_{br})}$$
+
+Esta segunda forma diz o que está acontecendo: o juro mínimo é exatamente o que cobre **o imposto sobre o ganho cambial**, diluído pelo valor investido. Sem ganho cambial ($C_f \le C_i$) não há imposto a cobrir e o $J_{eq}$ é zero — qualquer juro positivo já compensa.
+
+> $C_{eq}$ e $J_{eq}$ são **inversas uma da outra**: aplicar uma sobre o resultado da outra devolve o valor original.
+
+### Exemplo
+
+Aporte de R\$ 10.000,00 com o euro a R\$ 5,00, numa aplicação que promete **+1% em euros**:
+
+| Pergunta | Resposta |
+| :--- | :--- |
+| Até que câmbio compensa investir? | $C_{eq} = \dfrac{5{,}00 \cdot 0{,}15}{0{,}15 \cdot 1{,}01 - 0{,}01} \approx$ **R\$ 5,30** |
+| Se eu acho que o euro vai a R\$ 8,00, quanto a aplicação precisa render? | $J_{eq} = \dfrac{0{,}15 \cdot (8 - 5)}{8 \cdot 0{,}85} \approx$ **6,62%** |
+
+Ou seja: a 1% de juro, basta o euro passar de R\$ 5,30 para que valha mais a pena não ter investido. E se a expectativa é o euro a R\$ 8,00, só faz sentido investir numa aplicação que renda mais de 6,62% em euros.
 
 ---
 
